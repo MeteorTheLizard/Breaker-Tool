@@ -63,6 +63,6 @@ end
 
 function TOOL.BuildCPanel(CPanel)
     CPanel:AddControl("Header", {
-        Description = "#tool.breaker.desc"
+        Description = "#Tool.breakertool.desc"
     })
 end
