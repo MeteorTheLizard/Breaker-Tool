@@ -8,6 +8,15 @@ if CLIENT then
     language.Add("Tool.breakertool.right", "Secondary: Annihilate an Object")
 end
 
+TOOL.Information = {
+    {
+        name = "left",
+    },
+    {
+        name = "right",
+    }
+}
+
 local function DoBreak(Trace, mode, ply)
     local ent = Trace.Entity
     if not IsValid(ply) or not IsValid(ent) or ent:IsPlayer() then return false end
