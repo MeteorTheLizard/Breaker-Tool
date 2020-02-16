@@ -1,50 +1,59 @@
-TOOL.Category		= "Construction"
-TOOL.Name			= "#Tool.breakertool.name"
+TOOL.Category = "Construction"
+TOOL.Name = "#tool.breakertool.name"
 
 if CLIENT then
-	language.Add("Tool.breakertool.name","Breaker")
-	language.Add("Tool.breakertool.desc","Its like the Remover, except it breaks stuff!")
-	language.Add("Tool.breakertool.0","Primary: Break an Object")
+    language.Add("Tool.breakertool.name", "Breaker")
+    language.Add("Tool.breakertool.desc", "Its like the Remover, except it breaks stuff!")
+    language.Add("Tool.breakertool.left", "Primary: Break an Object")
+    language.Add("Tool.breakertool.right", "Secondary: Annihilate an Object")
 end
 
-local function ProperValid(trace)
-	if not trace.Entity:IsValid() then return false end
-	if trace.Entity:IsPlayer() then return false end
-	if SERVER and not trace.Entity:GetPhysicsObject():IsValid() then return false end
-	return true
+local function DoBreak(Trace, mode, ply)
+    local ent = Trace.Entity
+    if not IsValid(ply) or not IsValid(ent) or ent:IsPlayer() then return false end
+
+    if not mode then
+        local ED = EffectData()
+        ED:SetOrigin(Trace.HitPos)
+        util.Effect("Explosion", ED)
+    end
+
+    if SERVER then
+        ent:Fire("break", 1, 0)
+
+        if ent:IsNPC() then
+            ent:TakeDamage(1e9, ply, ply and ply:GetActiveWeapon() or Entity(0))
+        end
+
+        timer.Simple(0.1, function()
+            if IsValid(ent) then
+                ent:Remove()
+            end
+        end)
+    end
+
+    return true
 end
 
 function TOOL:LeftClick(trace)
-	if CLIENT and ProperValid(trace) then return true end
-	if not ProperValid(trace) then return false end
-	
-	if SERVER then
-		trace.Entity:Fire("break",1,0)
-		if trace.Entity:IsValid() then
-			trace.Entity:TakeDamage(1e9,self:GetOwner(),Entity(0))
-		end
-	end
-	
-	return true
+    local ply = self:GetOwner()
+    if DoBreak(trace, true, ply) then return true end
+
+    return false
 end
 
-function TOOL:RightClick()
-	return false
+function TOOL:RightClick(trace)
+    local ply = self:GetOwner()
+    if DoBreak(trace, false, ply) then return true end
+
+    return false
 end
 
 function TOOL:Reload()
-	return false
 end
 
-function TOOL:Think()
-	if CLIENT then return end
-	local pl = self:GetOwner()
-	local wep = pl:GetActiveWeapon()
-	if not wep:IsValid() or wep:GetClass() != "gmod_tool" or pl:GetInfo("gmod_toolmode") != "breakertool" then return end
-	local trace = pl:GetEyeTrace()
-	if not ProperValid(trace) then return end
-end
-
-function TOOL.BuildCPanel(cp)
-	cp:AddControl("Header",{Text = "#Tool.breakertool.name",Description = "#Tool.breakertool.desc"})
+function TOOL.BuildCPanel(CPanel)
+    CPanel:AddControl("Header", {
+        Description = "#tool.breaker.desc"
+    })
 end
