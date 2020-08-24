@@ -2,67 +2,79 @@ TOOL.Category = "Construction"
 TOOL.Name = "#tool.breakertool.name"
 
 if CLIENT then
-    language.Add("Tool.breakertool.name", "Breaker")
-    language.Add("Tool.breakertool.desc", "Its like the Remover, except it breaks stuff!")
-    language.Add("Tool.breakertool.left", "Primary: Break an Object")
-    language.Add("Tool.breakertool.right", "Secondary: Annihilate an Object")
+	function TOOL.BuildCPanel(CPanel)
+		CPanel:AddControl("Header",{
+			Description = "#Tool.breakertool.desc"
+		})
+	end
+
+	language.Add("Tool.breakertool.name","Breaker")
+	language.Add("Tool.breakertool.desc","It's like the Remover except it breaks stuff!")
+	language.Add("Tool.breakertool.left","Primary: Break an Object")
+	language.Add("Tool.breakertool.right","Secondary: Annihilate an Object")
 end
 
 TOOL.Information = {
-    {
-        name = "left",
-    },
-    {
-        name = "right",
-    }
+	{
+		name = "left"
+	},
+	{
+		name = "right"
+	}
 }
 
-local function DoBreak(Trace, mode, ply)
-    local ent = Trace.Entity
-    if not IsValid(ply) or not IsValid(ent) or ent:IsPlayer() then return false end
+local effectData = EffectData() -- We do not have to re-create this
+local damageInfo = DamageInfo()
+damageInfo:SetDamageType(DMG_DIRECT)
 
-    if not mode then
-        local ED = EffectData()
-        ED:SetOrigin(Trace.HitPos)
-        util.Effect("Explosion", ED)
-    end
+local function DoBreak(tTrace,bMode,Ply)
+	local Ent = tTrace.Entity
+	if not IsValid(Ply) or not IsValid(Ent) or Ent == game.GetWorld() or Ent:IsPlayer() then
+		return false
+	end
 
-    if SERVER then
-        ent:Fire("break", 1, 0)
+	if bMode then
+		effectData:SetOrigin(tTrace.HitPos)
+		util.Effect("Explosion",effectData)
+	end
 
-        if ent:IsNPC() then
-            ent:TakeDamage(1e9, ply, ply and ply:GetActiveWeapon() or Entity(0))
-        end
+	if SERVER then
+		damageInfo:SetAttacker(Ply)
+		damageInfo:SetInflictor(IsValid(Ply:GetActiveWeapon()) and Ply:GetActiveWeapon() or Ply)
+		damageInfo:SetDamage(Ent:Health() or 1e9)
+		Ent:TakeDamageInfo(damageInfo)
 
-        timer.Simple(0.1, function()
-            if IsValid(ent) then
-                ent:Remove()
-            end
-        end)
-    end
+		if Ent.TriggerInput and string.Left(Ent:GetClass(),2) == "gb" then -- GBombs Compat
+			Ent.MaxDelay = 0 -- Explode instantly
+			Ent:TriggerInput("Detonate",1)
+		end
 
-    return true
+		timer.Simple(0,function() -- One tick delay
+			if not IsValid(Ent) then return end
+			Ent:Fire("break",1) -- If applying damage did not work we try to call the internal break function
+
+			timer.Simple(0.1,function() -- If that did not work we simply remove it now
+				if not IsValid(Ent) then return end
+				Ent:Remove()
+			end)
+		end)
+	end
+
+	return true
 end
 
-function TOOL:LeftClick(trace)
-    local ply = self:GetOwner()
-    if DoBreak(trace, true, ply) then return true end
+function TOOL:LeftClick(tTrace)
+	if DoBreak(tTrace,false,self:GetOwner()) then return true end
 
-    return false
+	return false
 end
 
-function TOOL:RightClick(trace)
-    local ply = self:GetOwner()
-    if DoBreak(trace, false, ply) then return true end
+function TOOL:RightClick(tTrace)
+	if DoBreak(tTrace,true,self:GetOwner()) then return true end
 
-    return false
+	return false
 end
 
 function TOOL:Reload()
-end
 
-function TOOL.BuildCPanel(CPanel)
-    CPanel:AddControl("Header", {
-        Description = "#Tool.breakertool.desc"
-    })
 end
